@@ -1,15 +1,24 @@
-#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Arduino.h>
+#include <U8g2lib.h>
 
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-Adafruit_SSD1306 display(128, 64, &Wire, OLED_RESET);
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>
+#endif
+#ifdef U8X8_HAVE_HW_I2C
+#include <Wire.h>
+#endif
+
+U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE); // OLEDs without Reset of the Display
+
+// U8G2_SSD1306_128X64_NONAME_1_SW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE); // All Boards without Reset of the Display
+// U8G2_SSD1306_128X64_NONAME_2_SW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE); // All Boards without Reset of the Display
+// U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE); // All Boards without Reset of the Display
 
 // general
+int start_time = 0;
 int wait_time = 10;
 int last_wait_time = 0;
+char time_str[3];
 
 // ROTARY ENCODER
 int ROT_CLK = 8;
@@ -39,6 +48,18 @@ int detect_rotation_direction()
 
 void weld()
 {
+  // UNRIELABLE because, display updates take too long
+  // if (start_time != 0)
+  // {
+  //   digitalWrite(RELAY, HIGH);
+  //   if (millis() - start_time > wait_time)
+  //   {
+  //     digitalWrite(RELAY, LOW);
+  //     start_time = 0;
+  //   }
+  // }
+
+  // RELIABLE, but crashes the display
   digitalWrite(RELAY, HIGH);
   delay(wait_time);
   digitalWrite(RELAY, LOW);
@@ -46,43 +67,35 @@ void weld()
 
 void setup()
 {
-  Serial.begin(9600);
-  while (!Serial)
-  {
-    ;
-  }
-  delay(100);
+  // ------------- OLED SETUP -------------
+  u8x8.begin();
+  u8x8.setPowerSave(0);
+  // u8x8.setFont(u8x8_font_inb46_4x8_n); // I would like to use this font, but it doesn't work (bottom flickers)
+  u8x8.setFont(u8x8_font_inb33_3x6_n);
 
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
-  { // Address 0x3D for 128x64
-    Serial.println("SSD1306 allocation failed");
-    for (;;)
-      ; // Don't proceed, loop forever
-  }
-  delay(2000);
-
-  Serial.println("Writing to display");
-  display.clearDisplay();
-  display.setTextSize(3);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 20);
-  display.println("Hello, world!");
-  display.display();
-  delay(2000);
-  Serial.println("Done writing to display");
-
-  // Show initial display buffer contents on the screen --
-  // the library initializes this with an Adafruit splash screen.
-  // display.display();
-  // delay(2000);
-
+  // ------------- ROTARY ENCODER SETUP -------------
   pinMode(ROT_CLK, INPUT);
   pinMode(ROT_DT, INPUT);
   pinMode(ROT_SW, INPUT_PULLUP);
+  rotary_encoder_pos = digitalRead(ROT_CLK);
+
+  // ------------- RELAY SETUP -------------
   pinMode(RELAY, OUTPUT);
   digitalWrite(RELAY, LOW);
-  rotary_encoder_pos = digitalRead(ROT_CLK);
+}
+
+void draw(void)
+{
+  // draw welding time
+  u8x8.drawString(5, 1, time_str);
+  // delay(1);
+
+  // u8x8.drawString(0, 1, "Hello World!");
+  // u8x8.drawString(0, 0, "Line 0");
+  // u8x8.drawString(0, 2, "Line 8");
+  // u8x8.drawString(0, 9, "Line 9");
+  // delay(2000);
+  // u8x8.refreshDisplay(); // only required for SSD1606/7
 }
 
 void loop()
@@ -95,22 +108,23 @@ void loop()
     wait_time = 99;
   if (wait_time != last_wait_time)
   {
-    Serial.println(wait_time);
+    itoa(wait_time, time_str, 10);
+    last_wait_time = wait_time;
   }
-  last_wait_time = wait_time;
 
-  // Clear the buffer
-  // display.clearDisplay();
-  // display.drawRect(10, 10, 10, 10, WHITE);
-  // display.display();
+  // ----------------- OLED -----------------
+  draw();
 
   // ----------------- ODCZYT PRZYCISKU -----------------
-  delay(2);
+  // delay(2); // needed to avoid reading push on falling edge
+  // (but display takes too much time to update, so for now it's not needed)
   if (digitalRead(ROT_SW) == LOW)
   {
     if (!was_pressed)
     {
       was_pressed = true;
+      start_time = millis();
+      // uncomment when using rielable method
       weld();
     }
   }
@@ -118,4 +132,7 @@ void loop()
   {
     was_pressed = false;
   }
+
+  // uncomment when using unrielable method
+  // weld();
 }
