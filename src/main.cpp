@@ -12,7 +12,7 @@
 U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE); // OLEDs without Reset of the Display
 
 // general
-int wait_time = 10;
+int wait_time = 2;
 int last_wait_time = 0;
 char time_str[3];
 
@@ -43,17 +43,17 @@ void detect_rotation_direction()
   if (digitalRead(ROT_DT) == val)
   {
 
-    wait_time--;
+    wait_time -= 5;
     return;
   }
-  wait_time++;
+  wait_time += 5;
   return;
 }
 
 void weld()
 {
   digitalWrite(RELAY, HIGH);
-  delay(wait_time);
+  delay(wait_time * 10);
   digitalWrite(RELAY, LOW);
   u8x8.begin();
 }
@@ -93,13 +93,15 @@ void draw(void)
 void loop()
 {
   // ----------------- ODCZYT CZASU -----------------
-  if (wait_time > 99)
-    wait_time = 10;
-  if (wait_time < 10)
-    wait_time = 99;
+  if (wait_time > 95)
+    wait_time = 5;
+  if (wait_time < 1)
+    wait_time = 95;
   if (wait_time != last_wait_time)
   {
     itoa(wait_time, time_str, 10);
+    if (wait_time < 10)
+      time_str[1] = ' ';
     last_wait_time = wait_time;
   }
 
