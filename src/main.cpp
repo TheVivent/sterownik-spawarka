@@ -9,10 +9,16 @@
 #include <Wire.h>
 #endif
 
+// ---------------- CONFIG ----------------------
+#define STEP 5
+#define MAX_VALUE 95
+#define DELAY_FACTOR 10
+// ----------------------------------------------
+
 U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/SCL, /* data=*/SDA, /* reset=*/U8X8_PIN_NONE); // OLEDs without Reset of the Display
 
 // general
-int wait_time = 2;
+int wait_time = STEP;
 int last_wait_time = 0;
 char time_str[3];
 
@@ -43,17 +49,17 @@ void detect_rotation_direction()
   if (digitalRead(ROT_DT) == val)
   {
 
-    wait_time -= 5;
+    wait_time -= STEP;
     return;
   }
-  wait_time += 5;
+  wait_time += STEP;
   return;
 }
 
 void weld()
 {
   digitalWrite(RELAY, HIGH);
-  delay(wait_time * 10);
+  delay(wait_time * DELAY_FACTOR);
   digitalWrite(RELAY, LOW);
   u8x8.begin();
 }
@@ -93,10 +99,10 @@ void draw(void)
 void loop()
 {
   // ----------------- ODCZYT CZASU -----------------
-  if (wait_time > 95)
-    wait_time = 5;
-  if (wait_time < 1)
-    wait_time = 95;
+  if (wait_time > MAX_VALUE)
+    wait_time = STEP;
+  if (wait_time < STEP)
+    wait_time = MAX_VALUE;
   if (wait_time != last_wait_time)
   {
     itoa(wait_time, time_str, 10);
